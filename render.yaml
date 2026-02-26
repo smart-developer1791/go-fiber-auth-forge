@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: go-fiber-auth-forge
+    env: go
+    plan: free
+    buildCommand: |
+      if [ ! -f go.mod ]; then
+        go mod init forge-auth
+      fi
+      go mod tidy
+      go build -o forge-auth .
+    startCommand: ./forge-auth

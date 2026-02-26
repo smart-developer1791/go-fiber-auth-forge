@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🔨 Forge Authentication - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <style>
+      @keyframes forge-glow {
+        0%,
+        100% {
+          opacity: 0.6;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.05);
+        }
+      }
+      @keyframes spark {
+        0% {
+          transform: translateY(0) translateX(0) scale(1);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-200px) translateX(var(--tx)) scale(0);
+          opacity: 0;
+        }
+      }
+      @keyframes flame {
+        0%,
+        100% {
+          transform: translateY(0) scaleY(1);
+          opacity: 0.8;
+        }
+        50% {
+          transform: translateY(-10px) scaleY(1.1);
+          opacity: 1;
+        }
+      }
+      @keyframes hammer-strike {
+        0%,
+        100% {
+          transform: translateY(0) rotate(0deg);
+        }
+        25% {
+          transform: translateY(-20px) rotate(-10deg);
+        }
+        50% {
+          transform: translateY(0) rotate(0deg);
+        }
+      }
+      .forge-glow {
+        animation: forge-glow 3s ease-in-out infinite;
+      }
+      .spark {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: radial-gradient(circle, #fff, #ff6b00);
+        border-radius: 50%;
+        animation: spark 2s ease-out infinite;
+        --tx: 0px;
+      }
+      .flame {
+        animation: flame 1.5s ease-in-out infinite;
+      }
+      .hammer-strike {
+        animation: hammer-strike 0.6s ease-in-out;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gradient-to-br from-zinc-900 via-neutral-900 to-black min-h-screen flex items-center justify-center relative overflow-hidden"
+  >
+    <!-- Forge Background Effects -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <!-- Glowing Anvil Base -->
+      <div
+        class="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-gradient-radial from-orange-600/30 via-red-600/20 to-transparent blur-3xl forge-glow"
+      ></div>
+
+      <!-- Flames -->
+      <div
+        class="absolute bottom-20 left-1/4 w-32 h-64 bg-gradient-to-t from-orange-500/40 via-red-500/30 to-transparent blur-2xl flame"
+      ></div>
+      <div
+        class="absolute bottom-20 right-1/4 w-32 h-64 bg-gradient-to-t from-orange-500/40 via-red-500/30 to-transparent blur-2xl flame"
+        style="animation-delay: 0.5s"
+      ></div>
+
+      <!-- Sparks -->
+      <div id="sparks-container" class="absolute inset-0"></div>
+    </div>
+
+    <!-- Login Form -->
+    <div
+      class="relative z-10 w-full max-w-md px-6"
+      x-data="{
+             email: '',
+             password: '',
+             showPassword: false,
+             loading: false,
+             error: '',
+             emailError: '',
+             passwordError: '',
+             
+             validateEmail() {
+                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                 if (!this.email) {
+                     this.emailError = 'Email is required';
+                     return false;
+                 }
+                 if (!emailRegex.test(this.email)) {
+                     this.emailError = 'Invalid email format';
+                     return false;
+                 }
+                 this.emailError = '';
+                 return true;
+             },
+             
+             validatePassword() {
+                 if (!this.password) {
+                     this.passwordError = 'Password is required';
+                     return false;
+                 }
+                 if (this.password.length < 6) {
+                     this.passwordError = 'Password must be at least 6 characters';
+                     return false;
+                 }
+                 this.passwordError = '';
+                 return true;
+             },
+             
+             async handleSubmit() {
+                 this.error = '';
+                 this.validateEmail();
+                 this.validatePassword();
+                 
+                 if (this.emailError || this.passwordError) return;
+                 
+                 this.loading = true;
+                 triggerHammerStrike();
+                 
+                 try {
+                     const response = await fetch('/api/login', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({
+                             email: this.email,
+                             password: this.password
+                         })
+                     });
+                     
+                     const data = await response.json();
+                     
+                     if (response.ok) {
+                         triggerSparks();
+                         setTimeout(() => window.location.href = '/dashboard', 500);
+                     } else {
+                         this.error = data.error || 'Login failed';
+                         this.loading = false;
+                     }
+                 } catch (err) {
+                     this.error = 'Network error. Please try again.';
+                     this.loading = false;
+                 }
+             }
+         }"
+    >
+      <!-- Forge Title -->
+      <div class="text-center mb-8">
+        <div
+          class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-500 via-red-500 to-orange-600 rounded-2xl mb-4 shadow-2xl shadow-orange-500/50 forge-glow"
+        >
+          <span class="text-4xl">🔨</span>
+        </div>
+        <h1
+          class="text-4xl font-bold bg-gradient-to-r from-orange-400 via-red-400 to-orange-500 bg-clip-text text-transparent mb-2"
+        >
+          The Forge
+        </h1>
+        <p class="text-zinc-400 text-sm">Tempered by fire, secured by steel</p>
+      </div>
+
+      <!-- Login Card -->
+      <div
+        class="bg-gradient-to-br from-zinc-800/90 via-neutral-800/80 to-zinc-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-orange-500/20 p-8 relative overflow-hidden"
+      >
+        <!-- Metal Shine Effect -->
+        <div
+          class="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-red-500/5 pointer-events-none"
+        ></div>
+
+        <!-- Form -->
+        <form @submit.prevent="handleSubmit" class="space-y-6 relative z-10">
+          <!-- Error Alert -->
+          <div
+            x-show="error"
+            x-transition
+            class="bg-red-500/10 border border-red-500/50 rounded-xl p-4 flex items-start gap-3"
+          >
+            <span class="text-2xl">⚠️</span>
+            <div class="flex-1">
+              <p class="text-red-400 text-sm font-medium" x-text="error"></p>
+            </div>
+          </div>
+
+          <!-- Email Field -->
+          <div>
+            <label class="block text-zinc-300 text-sm font-medium mb-2"
+              >Email Address</label
+            >
+            <input
+              type="email"
+              x-model="email"
+              @blur="validateEmail"
+              @input="emailError = ''"
+              :class="emailError ? 'border-red-500/50 focus:border-red-500' : 'border-orange-500/30 focus:border-orange-500'"
+              class="w-full bg-zinc-900/50 border rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all"
+              placeholder="forge@example.com"
+              required
+            />
+            <p
+              x-show="emailError"
+              x-text="emailError"
+              class="text-red-400 text-xs mt-1"
+            ></p>
+          </div>
+
+          <!-- Password Field -->
+          <div>
+            <label class="block text-zinc-300 text-sm font-medium mb-2"
+              >Password</label
+            >
+            <div class="relative">
+              <input
+                :type="showPassword ? 'text' : 'password'"
+                x-model="password"
+                @blur="validatePassword"
+                @input="passwordError = ''"
+                :class="passwordError ? 'border-red-500/50 focus:border-red-500' : 'border-orange-500/30 focus:border-orange-500'"
+                class="w-full bg-zinc-900/50 border rounded-xl px-4 py-3 pr-12 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all"
+                placeholder="••••••••"
+                required
+              />
+              <button
+                type="button"
+                @click="showPassword = !showPassword"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-orange-400 transition-colors"
+              >
+                <span x-show="!showPassword">👁️</span>
+                <span x-show="showPassword">🙈</span>
+              </button>
+            </div>
+            <p
+              x-show="passwordError"
+              x-text="passwordError"
+              class="text-red-400 text-xs mt-1"
+            ></p>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            :disabled="loading"
+            :class="loading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-2xl hover:shadow-orange-500/50 hover:scale-[1.02]'"
+            class="w-full bg-gradient-to-r from-orange-500 via-red-500 to-orange-600 text-white font-bold py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 group"
+            id="submit-btn"
+          >
+            <span
+              x-show="!loading"
+              class="text-2xl group-hover:scale-110 transition-transform"
+              >🔨</span
+            >
+            <span x-show="!loading">Enter the Forge</span>
+            <span x-show="loading">
+              <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                  fill="none"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            </span>
+          </button>
+
+          <!-- Register Link -->
+          <div class="text-center">
+            <p class="text-zinc-400 text-sm">
+              New to the forge?
+              <a
+                href="/register"
+                class="text-orange-400 hover:text-orange-300 font-medium transition-colors"
+              >
+                Join the smithy →
+              </a>
+            </p>
+          </div>
+
+          <!-- Demo Credentials -->
+          <div
+            class="bg-zinc-900/50 border border-orange-500/20 rounded-xl p-4 mt-4"
+          >
+            <p class="text-zinc-400 text-xs mb-2">🔑 Demo Credentials:</p>
+            <p class="text-orange-400 text-xs font-mono">
+              forge@example.com / password123
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      // Create dynamic sparks
+      function createSpark() {
+        const container = document.getElementById("sparks-container");
+        const spark = document.createElement("div");
+        spark.className = "spark";
+
+        const x = Math.random() * window.innerWidth;
+        const y = window.innerHeight - 100;
+        const tx = (Math.random() - 0.5) * 100;
+
+        spark.style.left = x + "px";
+        spark.style.top = y + "px";
+        spark.style.setProperty("--tx", tx + "px");
+        spark.style.animationDelay = Math.random() * 2 + "s";
+
+        container.appendChild(spark);
+
+        setTimeout(() => spark.remove(), 2000);
+      }
+
+      // Continuous sparks
+      setInterval(createSpark, 300);
+
+      // Trigger extra sparks on login
+      function triggerSparks() {
+        for (let i = 0; i < 50; i++) {
+          setTimeout(createSpark, i * 20);
+        }
+      }
+
+      // Hammer strike animation
+      function triggerHammerStrike() {
+        const btn = document.getElementById("submit-btn");
+        btn.classList.add("hammer-strike");
+        setTimeout(() => btn.classList.remove("hammer-strike"), 600);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🔨 Forge Authentication - Register</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <style>
+      @keyframes forge-glow {
+        0%,
+        100% {
+          opacity: 0.6;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.05);
+        }
+      }
+      @keyframes spark {
+        0% {
+          transform: translateY(0) translateX(0) scale(1);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-200px) translateX(var(--tx)) scale(0);
+          opacity: 0;
+        }
+      }
+      @keyframes flame {
+        0%,
+        100% {
+          transform: translateY(0) scaleY(1);
+          opacity: 0.8;
+        }
+        50% {
+          transform: translateY(-10px) scaleY(1.1);
+          opacity: 1;
+        }
+      }
+      @keyframes hammer-forge {
+        0%,
+        100% {
+          transform: translateY(0) rotate(0deg) scale(1);
+        }
+        50% {
+          transform: translateY(-5px) rotate(5deg) scale(1.1);
+        }
+      }
+      .forge-glow {
+        animation: forge-glow 3s ease-in-out infinite;
+      }
+      .spark {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: radial-gradient(circle, #fff, #ff6b00);
+        border-radius: 50%;
+        animation: spark 2s ease-out infinite;
+        --tx: 0px;
+      }
+      .flame {
+        animation: flame 1.5s ease-in-out infinite;
+      }
+      .hammer-forge {
+        animation: hammer-forge 0.5s ease-in-out;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gradient-to-br from-zinc-900 via-neutral-900 to-black min-h-screen flex items-center justify-center relative overflow-hidden py-12"
+  >
+    <!-- Forge Background Effects -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <div
+        class="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-gradient-radial from-orange-600/30 via-red-600/20 to-transparent blur-3xl forge-glow"
+      ></div>
+      <div
+        class="absolute bottom-20 left-1/4 w-32 h-64 bg-gradient-to-t from-orange-500/40 via-red-500/30 to-transparent blur-2xl flame"
+      ></div>
+      <div
+        class="absolute bottom-20 right-1/4 w-32 h-64 bg-gradient-to-t from-orange-500/40 via-red-500/30 to-transparent blur-2xl flame"
+        style="animation-delay: 0.5s"
+      ></div>
+      <div id="sparks-container" class="absolute inset-0"></div>
+    </div>
+
+    <!-- Register Form -->
+    <div
+      class="relative z-10 w-full max-w-md px-6"
+      x-data="{
+             email: '',
+             password: '',
+             confirmPassword: '',
+             showPassword: false,
+             showConfirmPassword: false,
+             loading: false,
+             error: '',
+             emailError: '',
+             passwordError: '',
+             confirmPasswordError: '',
+             emailAvailable: null,
+             checkingEmail: false,
+             
+             passwordStrength() {
+                 if (!this.password) return { strength: 0, label: '', color: '' };
+                 let strength = 0;
+                 if (this.password.length >= 6) strength++;
+                 if (this.password.length >= 10) strength++;
+                 if (/[a-z]/.test(this.password) && /[A-Z]/.test(this.password)) strength++;
+                 if (/[0-9]/.test(this.password)) strength++;
+                 if (/[^a-zA-Z0-9]/.test(this.password)) strength++;
+                 
+                 const labels = ['', 'Weak', 'Fair', 'Good', 'Strong', 'Excellent'];
+                 const colors = ['', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-lime-500', 'bg-green-500'];
+                 
+                 return { 
+                     strength, 
+                     label: labels[strength], 
+                     color: colors[strength],
+                     width: (strength * 20) + '%'
+                 };
+             },
+             
+             async checkEmailAvailability() {
+                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                 if (!emailRegex.test(this.email)) {
+                     this.emailAvailable = null;
+                     return;
+                 }
+                 
+                 this.checkingEmail = true;
+                 try {
+                     const response = await fetch(`/api/check-email?email=${encodeURIComponent(this.email)}`);
+                     const data = await response.json();
+                     this.emailAvailable = data.available;
+                 } catch (err) {
+                     this.emailAvailable = null;
+                 } finally {
+                     this.checkingEmail = false;
+                 }
+             },
+             
+             validateEmail() {
+                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                 if (!this.email) {
+                     this.emailError = 'Email is required';
+                     return false;
+                 }
+                 if (!emailRegex.test(this.email)) {
+                     this.emailError = 'Invalid email format';
+                     return false;
+                 }
+                 if (this.emailAvailable === false) {
+                     this.emailError = 'Email already registered';
+                     return false;
+                 }
+                 this.emailError = '';
+                 return true;
+             },
+             
+             validatePassword() {
+                 if (!this.password) {
+                     this.passwordError = 'Password is required';
+                     return false;
+                 }
+                 if (this.password.length < 6) {
+                     this.passwordError = 'Password must be at least 6 characters';
+                     return false;
+                 }
+                 this.passwordError = '';
+                 return true;
+             },
+             
+             validateConfirmPassword() {
+                 if (!this.confirmPassword) {
+                     this.confirmPasswordError = 'Please confirm your password';
+                     return false;
+                 }
+                 if (this.password !== this.confirmPassword) {
+                     this.confirmPasswordError = 'Passwords do not match';
+                     return false;
+                 }
+                 this.confirmPasswordError = '';
+                 return true;
+             },
+             
+             async handleSubmit() {
+                 this.error = '';
+                 this.validateEmail();
+                 this.validatePassword();
+                 this.validateConfirmPassword();
+                 
+                 if (this.emailError || this.passwordError || this.confirmPasswordError) return;
+                 
+                 this.loading = true;
+                 triggerHammerForge();
+                 
+                 try {
+                     const response = await fetch('/api/register', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({
+                             email: this.email,
+                             password: this.password
+                         })
+                     });
+                     
+                     const data = await response.json();
+                     
+                     if (response.ok) {
+                         triggerSparks();
+                         setTimeout(() => window.location.href = '/dashboard', 500);
+                     } else {
+                         this.error = data.error || 'Registration failed';
+                         this.loading = false;
+                     }
+                 } catch (err) {
+                     this.error = 'Network error. Please try again.';
+                     this.loading = false;
+                 }
+             }
+         }"
+      x-init="$watch('email', () => { if (email) checkEmailAvailability(); })"
+    >
+      <!-- Forge Title -->
+      <div class="text-center mb-8">
+        <div
+          class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-500 via-red-500 to-orange-600 rounded-2xl mb-4 shadow-2xl shadow-orange-500/50 forge-glow"
+        >
+          <span class="text-4xl">⚒️</span>
+        </div>
+        <h1
+          class="text-4xl font-bold bg-gradient-to-r from-orange-400 via-red-400 to-orange-500 bg-clip-text text-transparent mb-2"
+        >
+          Join the Smithy
+        </h1>
+        <p class="text-zinc-400 text-sm">Forge your legacy in steel and fire</p>
+      </div>
+
+      <!-- Register Card -->
+      <div
+        class="bg-gradient-to-br from-zinc-800/90 via-neutral-800/80 to-zinc-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-orange-500/20 p-8 relative overflow-hidden"
+      >
+        <div
+          class="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-red-500/5 pointer-events-none"
+        ></div>
+
+        <!-- Form -->
+        <form @submit.prevent="handleSubmit" class="space-y-6 relative z-10">
+          <!-- Error Alert -->
+          <div
+            x-show="error"
+            x-transition
+            class="bg-red-500/10 border border-red-500/50 rounded-xl p-4 flex items-start gap-3"
+          >
+            <span class="text-2xl">⚠️</span>
+            <div class="flex-1">
+              <p class="text-red-400 text-sm font-medium" x-text="error"></p>
+            </div>
+          </div>
+
+          <!-- Email Field -->
+          <div>
+            <label class="block text-zinc-300 text-sm font-medium mb-2"
+              >Email Address</label
+            >
+            <div class="relative">
+              <input
+                type="email"
+                x-model="email"
+                @blur="validateEmail"
+                @input="emailError = ''"
+                :class="emailError ? 'border-red-500/50' : emailAvailable === true ? 'border-green-500/50' : emailAvailable === false ? 'border-red-500/50' : 'border-orange-500/30'"
+                class="w-full bg-zinc-900/50 border rounded-xl px-4 py-3 pr-12 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all"
+                placeholder="your@email.com"
+                required
+              />
+              <div class="absolute right-3 top-1/2 -translate-y-1/2">
+                <span x-show="checkingEmail" class="text-orange-400">⏳</span>
+                <span
+                  x-show="!checkingEmail && emailAvailable === true"
+                  class="text-green-400"
+                  >✓</span
+                >
+                <span
+                  x-show="!checkingEmail && emailAvailable === false"
+                  class="text-red-400"
+                  >✗</span
+                >
+              </div>
+            </div>
+            <p
+              x-show="emailError"
+              x-text="emailError"
+              class="text-red-400 text-xs mt-1"
+            ></p>
+            <p
+              x-show="!emailError && emailAvailable === false"
+              class="text-red-400 text-xs mt-1"
+            >
+              This email is already forged into our records
+            </p>
+          </div>
+
+          <!-- Password Field -->
+          <div>
+            <label class="block text-zinc-300 text-sm font-medium mb-2"
+              >Password</label
+            >
+            <div class="relative">
+              <input
+                :type="showPassword ? 'text' : 'password'"
+                x-model="password"
+                @blur="validatePassword"
+                @input="passwordError = ''"
+                :class="passwordError ? 'border-red-500/50' : 'border-orange-500/30'"
+                class="w-full bg-zinc-900/50 border rounded-xl px-4 py-3 pr-12 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all"
+                placeholder="••••••••"
+                required
+              />
+              <button
+                type="button"
+                @click="showPassword = !showPassword"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-orange-400 transition-colors"
+              >
+                <span x-show="!showPassword">👁️</span>
+                <span x-show="showPassword">🙈</span>
+              </button>
+            </div>
+            <p
+              x-show="passwordError"
+              x-text="passwordError"
+              class="text-red-400 text-xs mt-1"
+            ></p>
+
+            <!-- Password Strength Meter -->
+            <div x-show="password && !passwordError" class="mt-2">
+              <div class="flex items-center gap-2 mb-1">
+                <div
+                  class="flex-1 h-2 bg-zinc-700 rounded-full overflow-hidden"
+                >
+                  <div
+                    :class="passwordStrength().color"
+                    :style="`width: ${passwordStrength().width}`"
+                    class="h-full transition-all duration-300"
+                  ></div>
+                </div>
+                <span
+                  :class="{
+                                    'text-red-400': passwordStrength().strength <= 1,
+                                    'text-orange-400': passwordStrength().strength === 2,
+                                    'text-yellow-400': passwordStrength().strength === 3,
+                                    'text-lime-400': passwordStrength().strength === 4,
+                                    'text-green-400': passwordStrength().strength === 5
+                                }"
+                  class="text-xs font-medium"
+                  x-text="passwordStrength().label"
+                ></span>
+              </div>
+              <p class="text-zinc-500 text-xs">
+                🔥 Forge stronger: mix uppercase, numbers & symbols
+              </p>
+            </div>
+          </div>
+
+          <!-- Confirm Password Field -->
+          <div>
+            <label class="block text-zinc-300 text-sm font-medium mb-2"
+              >Confirm Password</label
+            >
+            <div class="relative">
+              <input
+                :type="showConfirmPassword ? 'text' : 'password'"
+                x-model="confirmPassword"
+                @blur="validateConfirmPassword"
+                @input="confirmPasswordError = ''"
+                :class="confirmPasswordError ? 'border-red-500/50' : confirmPassword && password === confirmPassword ? 'border-green-500/50' : 'border-orange-500/30'"
+                class="w-full bg-zinc-900/50 border rounded-xl px-4 py-3 pr-12 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all"
+                placeholder="••••••••"
+                required
+              />
+              <button
+                type="button"
+                @click="showConfirmPassword = !showConfirmPassword"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-orange-400 transition-colors"
+              >
+                <span x-show="!showConfirmPassword">👁️</span>
+                <span x-show="showConfirmPassword">🙈</span>
+              </button>
+            </div>
+            <p
+              x-show="confirmPasswordError"
+              x-text="confirmPasswordError"
+              class="text-red-400 text-xs mt-1"
+            ></p>
+            <p
+              x-show="!confirmPasswordError && confirmPassword && password === confirmPassword"
+              class="text-green-400 text-xs mt-1"
+            >
+              ✓ Passwords match perfectly
+            </p>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            :disabled="loading || emailAvailable === false"
+            :class="loading || emailAvailable === false ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-2xl hover:shadow-orange-500/50 hover:scale-[1.02]'"
+            class="w-full bg-gradient-to-r from-orange-500 via-red-500 to-orange-600 text-white font-bold py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 group"
+            id="submit-btn"
+          >
+            <span
+              x-show="!loading"
+              class="text-2xl group-hover:scale-110 transition-transform"
+              >⚒️</span
+            >
+            <span x-show="!loading">Forge My Account</span>
+            <span x-show="loading">
+              <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                  fill="none"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            </span>
+          </button>
+
+          <!-- Login Link -->
+          <div class="text-center">
+            <p class="text-zinc-400 text-sm">
+              Already a blacksmith?
+              <a
+                href="/login"
+                class="text-orange-400 hover:text-orange-300 font-medium transition-colors"
+              >
+                Return to the forge →
+              </a>
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      function createSpark() {
+        const container = document.getElementById("sparks-container");
+        const spark = document.createElement("div");
+        spark.className = "spark";
+
+        const x = Math.random() * window.innerWidth;
+        const y = window.innerHeight - 100;
+        const tx = (Math.random() - 0.5) * 100;
+
+        spark.style.left = x + "px";
+        spark.style.top = y + "px";
+        spark.style.setProperty("--tx", tx + "px");
+        spark.style.animationDelay = Math.random() * 2 + "s";
+
+        container.appendChild(spark);
+        setTimeout(() => spark.remove(), 2000);
+      }
+
+      setInterval(createSpark, 300);
+
+      function triggerSparks() {
+        for (let i = 0; i < 50; i++) {
+          setTimeout(createSpark, i * 20);
+        }
+      }
+
+      function triggerHammerForge() {
+        const btn = document.getElementById("submit-btn");
+        btn.classList.add("hammer-forge");
+        setTimeout(() => btn.classList.remove("hammer-forge"), 500);
+      }
+    </script>
+  </body>
+</html>
